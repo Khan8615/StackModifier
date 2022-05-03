@@ -98,7 +98,7 @@ using UnityEngine;
  * Update 1.3.3
  * Fixed Missing Defaults
  * Fixed UI Not showing correctly between Multipliers and Modified items
- *
+ * Added
  * aiming.module.mlrs, MLRS Aiming Module
  * mlrs, MLRS
  * ammo.rocket.mlrs, MLRS Rocket
@@ -198,11 +198,14 @@ using UnityEngine;
  * update 1.4.9
  * Added 1 new feature
  * Disable Images toggle: Disables ImageLibrary Requirement / Images for UI Editor
+ *
+ * update 1.5.0
+ * Fixed loot panel UI not updating value counts on items when splitting a skinned item stack inside of a loot panel container into a players inventory
 */
 
 namespace Oxide.Plugins
 {
-    [Info("Stack Modifier", "Khan", "1.4.9")]
+    [Info("Stack Modifier", "Khan", "1.5.0")]
     [Description("Modify item stack sizes, includes UI Editor")]
     public class StackModifier : RustPlugin
     {
@@ -1098,23 +1101,25 @@ namespace Oxide.Plugins
         internal class PluginConfig : SerializableConfiguration
         {
             [JsonProperty("Revert to Vanilla Stacks on unload (Recommended true if removing plugin)")]
-            public bool Reset { get; set; }
+            public bool Reset;
 
             [JsonProperty("Disable Ammo/Fuel duplication fix (Recommended false)")]
-            public bool DisableFix { get; set; }
+            public bool DisableFix;
 
             [JsonProperty("Enable VendingMachine Ammo Fix (Recommended)")]
-            public bool VendingMachineAmmoFix { get; set; }
+            public bool VendingMachineAmmoFix = true;
 
             [JsonProperty("Blocked Stackable Items", Order = 4)]
-            public List<string> Blocked { get; set; }
+            public List<string> Blocked = new List<string>
+            {
+                "shortname"
+            };
 
             [JsonProperty("Category Stack Multipliers", Order = 5)]
             public Dictionary<string, int> StackCategoryMultipliers = new Dictionary<string, int>();
 
             [JsonProperty("Stack Categories", Order = 6)]
-            public Dictionary<string, Dictionary<string, _Items>> StackCategories =
-                new Dictionary<string, Dictionary<string, _Items>>();
+            public Dictionary<string, Dictionary<string, _Items>> StackCategories = new Dictionary<string, Dictionary<string, _Items>>();
 
             [JsonProperty("Enable UI Editor")]
             public bool EnableEditor = true;
@@ -1162,25 +1167,6 @@ namespace Oxide.Plugins
             public string IconUrlSm = "https://imgur.com/BPM9UR4.png";
 
             public Colors Colors = new Colors();
-
-            public string ToJson() => JsonConvert.SerializeObject(this);
-
-            public Dictionary<string, object> ToDictionary() =>
-                JsonConvert.DeserializeObject<Dictionary<string, object>>(ToJson());
-
-            public static PluginConfig DefaultConfig()
-            {
-                return new PluginConfig
-                {
-                    Reset = false,
-                    DisableFix = false,
-                    VendingMachineAmmoFix = true,
-                    Blocked = new List<string>
-                    {
-                        "shortname"
-                    },
-                };
-            }
         }
 
         public class _Items
@@ -1282,7 +1268,7 @@ namespace Oxide.Plugins
 
         #region Oxide
 
-        protected override void LoadDefaultConfig() => _config = PluginConfig.DefaultConfig();
+        protected override void LoadDefaultConfig() => _config = new PluginConfig();
 
         protected override void LoadConfig()
         {
@@ -1564,8 +1550,9 @@ namespace Oxide.Plugins
                 var heldEntity = x.GetHeldEntity();
                 if (heldEntity != null)
                 {
-                    heldEntity.skinID = item.skin; 
+                    heldEntity.skinID = item.skin;
                 }
+                item.MarkDirty();
 
                 return x;
             }
